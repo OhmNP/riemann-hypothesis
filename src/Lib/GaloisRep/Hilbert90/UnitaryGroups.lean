@@ -109,29 +109,18 @@ structure IsTwistedRoot (τ : O →+* O) (p : ℕ) (m : O) (k : ℕ) {A : Type w
     aeval B (1 + m • (X ^ (1 - k) * y)) ^ (1 - k) * (1 + m • B) *
       star (aeval B (1 + m • (X ^ (1 - k) * y))) = aeval B (1 + m • (X ^ (1 - k) * y)) ^ k
 
-universe w in
-/-- Roots in `O[X]/Q`. Let `O` be profinite, let `τ` be tame at level `0` (`τ ^ p = 1`, `0 < p`,
-and some element has trace `1`), commute with `star` and fix `c`, with `c - star c` a unit. Let `m`
-be fixed by `τ` and `star`, let `1 + m Y` be invertible, with `Y` hermitian (`k = 0`) or with
-`Yᴴ (1 + m Y) = -Y` (`k = 1`), and let `Q = charpoly Y` be fixed by `τ`. Then some polynomials
-`y`, `z`, `z'` satisfy `New.IsTwistedRoot τ p m k B y z z'` at every root `B` of `Q` in an
-`O`-algebra `A` with a compatible `star`. -/
-lemma exists_isTwistedRoot_of_charpoly_eq (hO : IsProfiniteRing O) {m c : O}
-    (h_tame_zero : IsTameAtLevel τ p 0) (hc : τ c = c) (hc_unit : IsUnit (c - star c))
+/-- Construct the two commuting endomorphisms `θ` and `ρ` of `O[X]/Q`: `θ` applies `τ` to
+coefficients and fixes `root Q`, while `ρ` applies `star` to coefficients and sends `root Q` to
+`root Q * (-mk Q w) ^ k`, forming an involution (`ρ ^ 2 = 1`) that commutes with `θ`. -/
+private lemma exists_adjoinRoot_commute_involution {m : O}
     (hτ : ∀ x : O, τ (star x) = star (τ x)) {Y : Matrix n n O} (hm_star : star m = m)
-    (hm : τ m = m) {Q : O[X]} (hQ : Y.charpoly = Q) (hQτ : Q.map τ = Q) {k : ℕ} (hk : k ≤ 1)
-    (hY_rel : Yᴴ * (1 + m • Y) ^ k = (-1) ^ k * Y) (hY_unit : IsUnit (1 + m • Y)) :
-    ∃ y z z' : O[X], ∀ ⦃A : Type w⦄ [Ring A] [StarRing A] [Algebra O A] [StarModule O A] ⦃B : A⦄,
-      Q.aeval B = 0 → IsTwistedRoot τ p m k B y z z' := by
-  -- Work in `O[X]/Q` with two commuting maps: `θ`, acting by `τ` on coefficients, and an
-  -- involution `ρ` that becomes `star` at each root `B` obeying the relation of `Y`. Solve for `T`
-  -- in the `θ`-fixed ring by tame descent along `ρ`, write it as a norm by tame descent along `θ`,
-  -- and evaluate at `B`.
-  have h_coprime : IsCoprime Q (1 + m • X) := by
-    rw [← hQ, ← isUnit_aeval_iff_isCoprime]
-    simpa using hY_unit
-  obtain ⟨a, w, hw₀⟩ : ∃ a w : O[X], a * Q + w * (1 + m • X) = 1 := h_coprime
-  have hQ_monic : Q.Monic := hQ ▸ Y.charpoly_monic
+    (hm : τ m = m) {Q a w : O[X]} (hQ : Y.charpoly = Q) (hQτ : Q.map τ = Q)
+    (hw₀ : a * Q + w * (1 + m • X) = 1) {k : ℕ} (hk : k ≤ 1)
+    (hY_rel : Yᴴ * (1 + m • Y) ^ k = (-1) ^ k * Y) :
+    ∃ θ ρ : AdjoinRoot Q →+* AdjoinRoot Q,
+      (∀ q : O[X], θ (mk Q q) = mk Q (q.map τ)) ∧
+      (∀ q : O[X], ρ (mk Q q) = mk Q ((q.map (starRingEnd O)).comp (X * (-w) ^ k))) ∧
+      Commute θ ρ ∧ ρ ^ 2 = 1 := by
   obtain ⟨θ, hθ⟩ :
       ∃ θ : AdjoinRoot Q →+* AdjoinRoot Q, ∀ q : O[X], θ (mk Q q) = mk Q (q.map τ) := by
     simpa using exists_adjoinRoot_map_comp (Q := Q) τ X (by rw [comp_X, hQτ])
@@ -147,9 +136,9 @@ lemma exists_isTwistedRoot_of_charpoly_eq (hO : IsProfiniteRing O) {m c : O}
   obtain ⟨ρ, hρ⟩ := exists_adjoinRoot_map_comp (starRingEnd O) (X * (-w) ^ k) hQ_dvd
   have hw : mk Q w * (1 + AdjoinRoot.of Q m * root Q) = 1 := by
     simpa [smul_eq_C_mul] using congrArg (mk Q) hw₀
-  have hθ_of (a : O) : θ (AdjoinRoot.of Q a) = AdjoinRoot.of Q (τ a) := by simp [hθ, ← mk_C]
+  have hθ_of (x : O) : θ (AdjoinRoot.of Q x) = AdjoinRoot.of Q (τ x) := by simp [hθ, ← mk_C]
   have hθ_root : θ (root Q) = root Q := by simp [hθ, ← mk_X]
-  have hρ_of (a : O) : ρ (AdjoinRoot.of Q a) = AdjoinRoot.of Q (star a) := by
+  have hρ_of (x : O) : ρ (AdjoinRoot.of Q x) = AdjoinRoot.of Q (star x) := by
     rw [← mk_C, hρ, Polynomial.map_C, C_comp, starRingEnd_apply, mk_C]
   have hρ_root : ρ (root Q) = root Q * (-mk Q w) ^ k := by
     rw [← mk_X, hρ, Polynomial.map_X, X_comp, map_mul, map_pow, map_neg, mk_X]
@@ -160,7 +149,7 @@ lemma exists_isTwistedRoot_of_charpoly_eq (hO : IsProfiniteRing O) {m c : O}
         simp [hθ_of, hθ_root, hm]
       rw [← h_fix, ← map_mul, hw, map_one]
     refine (commute_iff_eq θ ρ).mpr ?_
-    ext a
+    ext x
     · simp [hθ_of, hρ_of, hτ]
     · simp [hθ_root, hρ_root, hθw]
   have hρ_sq : ρ ^ 2 = 1 := by
@@ -175,24 +164,39 @@ lemma exists_isTwistedRoot_of_charpoly_eq (hO : IsProfiniteRing O) {m c : O}
           rwa [h_w] at h_img
         rw [hρ_root, map_mul, map_pow, map_neg, hρ_root]
         linear_combination root Q * hρw
-    ext a
+    ext x
     · simp [sq, hρ_of]
     · simpa [sq] using hρ_root_sq
-  have h_prof : IsProfiniteRing (AdjoinRoot Q) :=
-    hO.of_addEquiv_pi (powerBasisAux' hQ_monic).equivFun.toAddEquiv
-  have hθ_tame {x : O} (ht : IsTameAtLevel τ p x) : IsTameAtLevel θ p (AdjoinRoot.of Q x) :=
-    ht.of_semiconj (AdjoinRoot.of Q) (fun a ↦ (hθ_of a).symm) <| RingHom.ext fun z ↦ by
-      obtain ⟨q, rfl⟩ := mk_surjective z
-      simp [iterate_mk_eq_mk_map_pow hθ, ht.pow_eq_one, RingHom.one_def]
-  -- Solve for a `θ`-fixed unit `g ≡ 1 mod m X ^ (1 - k)` by descent along `ρ` in `θ.eqLocus 1`.
-  let F : Subring (AdjoinRoot Q) := θ.eqLocus 1
+  exact ⟨θ, ρ, hθ, hρ, h_comm, hρ_sq⟩
+
+/-- Descent along the involution `ρ` in the `θ`-fixed subring `F = θ.eqLocus 1` of `O[X]/Q`:
+produces a unit `g` of `F` congruent to `1` modulo `m * root Q ^ (1 - k)` satisfying
+`g ^ (1 - k) * (1 + m * root Q) * ρ g = g ^ k`. -/
+private lemma exists_fixed_unit_of_involution {m c : O} (hc : τ c = c)
+    (hc_unit : IsUnit (c - star c)) (hm_star : star m = m) (hm : τ m = m)
+    {Q w : O[X]} {k : ℕ} (hk : k ≤ 1) {θ ρ : AdjoinRoot Q →+* AdjoinRoot Q}
+    (hθ : ∀ q : O[X], θ (mk Q q) = mk Q (q.map τ))
+    (hρ : ∀ q : O[X], ρ (mk Q q) = mk Q ((q.map (starRingEnd O)).comp (X * (-w) ^ k)))
+    (hw : mk Q w * (1 + AdjoinRoot.of Q m * root Q) = 1)
+    (h_comm : Commute θ ρ) (hρ_sq : ρ ^ 2 = 1) (hF_prof : IsProfiniteRing (θ.eqLocus 1)) :
+    let F : Subring (AdjoinRoot Q) := θ.eqLocus 1
+    ∃ (g : Fˣ) (y₀ : F),
+      ((g : F) : AdjoinRoot Q) - 1 = AdjoinRoot.of Q m * root Q ^ (1 - k) * y₀ ∧
+      ((g : F) : AdjoinRoot Q) ^ (1 - k) * (1 + AdjoinRoot.of Q m * root Q) *
+        ρ (g : F) = ((g : F) : AdjoinRoot Q) ^ k := by
+  intro F
+  have hθ_of (x : O) : θ (AdjoinRoot.of Q x) = AdjoinRoot.of Q (τ x) := by simp [hθ, ← mk_C]
+  have hθ_root : θ (root Q) = root Q := by simp [hθ, ← mk_X]
+  have hρ_of (x : O) : ρ (AdjoinRoot.of Q x) = AdjoinRoot.of Q (star x) := by
+    rw [← mk_C, hρ, Polynomial.map_C, C_comp, starRingEnd_apply, mk_C]
+  have hρ_root : ρ (root Q) = root Q * (-mk Q w) ^ k := by
+    rw [← mk_X, hρ, Polynomial.map_X, X_comp, map_mul, map_pow, map_neg, mk_X]
   have hρ_mem (x : AdjoinRoot Q) (hx : x ∈ F) : ρ x ∈ F :=
     (RingHom.congr_fun h_comm.eq x).trans (congrArg ρ hx)
   let r : F →+* F := ρ.restrict F F hρ_mem
   have hr_val (x : F) : (r x : AdjoinRoot Q) = ρ x := rfl
   let N (j : ℕ) : F :=
     ⟨AdjoinRoot.of Q m, by simp [F, hθ_of, hm]⟩ * ⟨root Q, hθ_root⟩ ^ (1 - j)
-  have hF_prof : IsProfiniteRing F := h_prof.eqLocus (by simpa using hθ_tame h_tame_zero)
   have hr_tame : IsTameAtLevel r 2 (N k) := by
     let γ : F := ⟨AdjoinRoot.of Q c, by simp [F, hθ_of, hc]⟩
     have hr_sq : r ^ 2 = 1 := RingHom.ext fun x ↦ Subtype.ext (RingHom.congr_fun hρ_sq x)
@@ -225,12 +229,53 @@ lemma exists_isTwistedRoot_of_charpoly_eq (hO : IsProfiniteRing O) {m c : O}
         simpa [prod_range_succ] using h_norm_one
       obtain ⟨g, hg_lev, hg⟩ := hr_tame.hilbert90_unit (.inr hF_prof) hu h_lev h_prod
       exact ⟨g, hg_lev, by simpa using hg⟩
+  exact ⟨g, y₀, by simpa [N, Subtype.ext_iff] using hg_lev,
+    by simpa [N, hr_val, Subtype.ext_iff] using hg_rel⟩
+
+universe w in
+/-- Roots in `O[X]/Q`. Let `O` be profinite, let `τ` be tame at level `0` (`τ ^ p = 1`, `0 < p`,
+and some element has trace `1`), commute with `star` and fix `c`, with `c - star c` a unit. Let `m`
+be fixed by `τ` and `star`, let `1 + m Y` be invertible, with `Y` hermitian (`k = 0`) or with
+`Yᴴ (1 + m Y) = -Y` (`k = 1`), and let `Q = charpoly Y` be fixed by `τ`. Then some polynomials
+`y`, `z`, `z'` satisfy `New.IsTwistedRoot τ p m k B y z z'` at every root `B` of `Q` in an
+`O`-algebra `A` with a compatible `star`. -/
+lemma exists_isTwistedRoot_of_charpoly_eq (hO : IsProfiniteRing O) {m c : O}
+    (h_tame_zero : IsTameAtLevel τ p 0) (hc : τ c = c) (hc_unit : IsUnit (c - star c))
+    (hτ : ∀ x : O, τ (star x) = star (τ x)) {Y : Matrix n n O} (hm_star : star m = m)
+    (hm : τ m = m) {Q : O[X]} (hQ : Y.charpoly = Q) (hQτ : Q.map τ = Q) {k : ℕ} (hk : k ≤ 1)
+    (hY_rel : Yᴴ * (1 + m • Y) ^ k = (-1) ^ k * Y) (hY_unit : IsUnit (1 + m • Y)) :
+    ∃ y z z' : O[X], ∀ ⦃A : Type w⦄ [Ring A] [StarRing A] [Algebra O A] [StarModule O A] ⦃B : A⦄,
+      Q.aeval B = 0 → IsTwistedRoot τ p m k B y z z' := by
+  -- Work in `O[X]/Q` with two commuting maps: `θ`, acting by `τ` on coefficients, and an
+  -- involution `ρ` that becomes `star` at each root `B` obeying the relation of `Y`. Solve for `g`
+  -- in the `θ`-fixed ring by tame descent along `ρ`, write it as a norm by tame descent along `θ`,
+  -- and evaluate at `B`.
+  have h_coprime : IsCoprime Q (1 + m • X) := by
+    rw [← hQ, ← isUnit_aeval_iff_isCoprime]
+    simpa using hY_unit
+  obtain ⟨a, w, hw₀⟩ : ∃ a w : O[X], a * Q + w * (1 + m • X) = 1 := h_coprime
+  have hQ_monic : Q.Monic := hQ ▸ Y.charpoly_monic
+  obtain ⟨θ, ρ, hθ, hρ, h_comm, hρ_sq⟩ :=
+    exists_adjoinRoot_commute_involution hτ hm_star hm hQ hQτ hw₀ hk hY_rel
+  have hw : mk Q w * (1 + AdjoinRoot.of Q m * root Q) = 1 := by
+    simpa [smul_eq_C_mul] using congrArg (mk Q) hw₀
+  have hθ_of (x : O) : θ (AdjoinRoot.of Q x) = AdjoinRoot.of Q (τ x) := by simp [hθ, ← mk_C]
+  have h_prof : IsProfiniteRing (AdjoinRoot Q) :=
+    hO.of_addEquiv_pi (powerBasisAux' hQ_monic).equivFun.toAddEquiv
+  have hθ_tame {x : O} (ht : IsTameAtLevel τ p x) : IsTameAtLevel θ p (AdjoinRoot.of Q x) :=
+    ht.of_semiconj (AdjoinRoot.of Q) (fun x ↦ (hθ_of x).symm) <| RingHom.ext fun z ↦ by
+      obtain ⟨q, rfl⟩ := mk_surjective z
+      simp [iterate_mk_eq_mk_map_pow hθ, ht.pow_eq_one, RingHom.one_def]
+  let F : Subring (AdjoinRoot Q) := θ.eqLocus 1
+  have hF_prof : IsProfiniteRing F := h_prof.eqLocus (by simpa using hθ_tame h_tame_zero)
+  obtain ⟨g, y₀, hg_lev, hg_rel'⟩ :=
+    exists_fixed_unit_of_involution hc hc_unit hm_star hm hk hθ hρ hw h_comm hρ_sq hF_prof
   obtain ⟨y, hy⟩ : ∃ y : O[X], mk Q y = y₀ := mk_surjective (y₀ : AdjoinRoot Q)
   have hy_fix : mk Q (y.map τ) = mk Q y := by
     rw [← hθ, hy]
     exact y₀.prop
   have hg_mk : ((g : F) : AdjoinRoot Q) = mk Q (1 + m • (X ^ (1 - k) * y)) := by
-    simpa [N, smul_eq_C_mul, mul_assoc, sub_eq_iff_eq_add', Subtype.ext_iff, hy] using hg_lev
+    simpa [smul_eq_C_mul, mul_assoc, sub_eq_iff_eq_add', hy] using hg_lev
   -- At tame level `m` the `θ`-fixed unit `g ≡ 1 mod m` is a norm along `θ`.
   have hg_lev' : AdjoinRoot.of Q m ∣ ((g : F) : AdjoinRoot Q) - 1 := by simp [hg_mk, ← C_mul']
   have h_norm (ht : IsTameAtLevel τ p m) : ∃ (u : (AdjoinRoot Q)ˣ) (z' z : O[X]),
@@ -263,11 +308,8 @@ lemma exists_isTwistedRoot_of_charpoly_eq (hO : IsProfiniteRing O) {m c : O}
       rw [hg_mk, hf]
     have hf_ρ_g : f (ρ ((g : F) : AdjoinRoot Q)) = star (aeval B (1 + m • (X ^ (1 - k) * y))) := by
       rw [hg_mk, hf_ρ]
-    have hg_rel' : ((g : F) : AdjoinRoot Q) ^ (1 - k) * (1 + AdjoinRoot.of Q m * root Q) *
-        ρ ((g : F) : AdjoinRoot Q) = ((g : F) : AdjoinRoot Q) ^ k := by
-      simpa [N, hr_val, Subtype.ext_iff] using hg_rel
     have h_rel_f := congrArg f hg_rel'
-    have hf_of (a : O) : f (AdjoinRoot.of Q a) = algebraMap O A a := by rw [← mk_C, hf, aeval_C]
+    have hf_of (x : O) : f (AdjoinRoot.of Q x) = algebraMap O A x := by rw [← mk_C, hf, aeval_C]
     have hf_root : f (root Q) = B := by rw [← mk_X, hf, aeval_X]
     simpa [hf_g, hf_ρ_g, hf_of, hf_root, ← Algebra.smul_def] using h_rel_f
 
