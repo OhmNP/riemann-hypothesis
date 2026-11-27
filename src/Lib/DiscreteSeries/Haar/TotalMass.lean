@@ -415,23 +415,13 @@ private lemma norm_conjTransHom_sub_one (j : S →* U J) (s : S) :
   simpa [conjTransHom, conjTransU, Matrix.star_eq_conjTranspose] using
     norm_star ((j s : Matrix n n ℂ) - 1)
 
-private local instance : MeasurableSpace Sᵐᵒᵖ :=
-  MeasurableSpace.comap MulOpposite.unop inferInstance
-
 private def opMeasurableEquiv (S : Type) [MeasurableSpace S] : S ≃ᵐ Sᵐᵒᵖ where
   toEquiv := MulOpposite.opEquiv
-  measurable_toFun _ := by rintro ⟨t, ht, rfl⟩; exact ht
-  measurable_invFun := comap_measurable MulOpposite.unop
-
-private lemma measurableMul_op [MeasurableMul S] : MeasurableMul Sᵐᵒᵖ where
-  measurable_const_mul a := (opMeasurableEquiv S).measurable.comp
-    ((measurable_mul_const a.unop).comp (opMeasurableEquiv S).symm.measurable)
-  measurable_mul_const a := (opMeasurableEquiv S).measurable.comp
-    ((measurable_const_mul a.unop).comp (opMeasurableEquiv S).symm.measurable)
+  measurable_toFun := measurable_mul_op
+  measurable_invFun := measurable_mul_unop
 
 private lemma isMulLeftInvariant_map_op (ν : Measure S) [MeasurableMul S] [ν.IsMulRightInvariant] :
     (ν.map (opMeasurableEquiv S)).IsMulLeftInvariant := by
-  have : MeasurableMul Sᵐᵒᵖ := measurableMul_op
   refine ⟨fun a ↦ ?_⟩
   let e := opMeasurableEquiv S
   rw [Measure.map_map (measurable_const_mul a) e.measurable,
@@ -449,7 +439,6 @@ theorem measure_ball_le_covering (ν : Measure S) [MeasurableMul S] [ν.IsMulRig
       ENNReal.ofReal (K ^ (2 * card n ^ 2)) * ν {s : S | ‖(j s : Matrix n n ℂ) - 1‖ ≤ D⁻¹} := by
   -- Pass to `Sᵐᵒᵖ` with `s ↦ (j s)ᴴ` so right invariance becomes left invariance, then apply
   -- Tau Ceti's covering bound `Matrix.unitaryGroupOf.measure_setOf_norm_mul_le_le`.
-  have : MeasurableMul Sᵐᵒᵖ := measurableMul_op
   have : (ν.map (opMeasurableEquiv S)).IsMulLeftInvariant := isMulLeftInvariant_map_op ν
   let e := opMeasurableEquiv S
   have hcov := Matrix.unitaryGroupOf.measure_setOf_norm_mul_le_le (ν.map e)
@@ -492,12 +481,10 @@ theorem lintegral_decay_le (ν : Measure S) [MeasurableMul S] [ν.IsMulRightInva
     ∫⁻ s : S, ENNReal.ofReal ((2 / ‖((j s * y : U J) : Matrix n n ℂ)‖) ^ c) ∂ν ≤
       ENNReal.ofReal (16 ^ c) * ν {s : S | ‖(j s : Matrix n n ℂ) - 1‖ ≤ 1} := by
   -- Pass to `Sᵐᵒᵖ` with `s ↦ (j s)ᴴ` and apply Tau Ceti's `lintegral_norm_mul_rpow_neg_le`.
-  have : MeasurableMul Sᵐᵒᵖ := measurableMul_op
   have : (ν.map (opMeasurableEquiv S)).IsMulLeftInvariant := isMulLeftInvariant_map_op ν
   have : OpensMeasurableSpace Sᵐᵒᵖ :=
-    ⟨MeasurableSpace.generateFrom_le fun s hs ↦
-      ⟨MulOpposite.op ⁻¹' s, (hs.preimage MulOpposite.continuous_op).measurableSet,
-        by ext x; cases x; rfl⟩⟩
+    ⟨MeasurableSpace.generateFrom_le fun _ hs ↦
+      (hs.preimage MulOpposite.continuous_op).measurableSet⟩
   let e := opMeasurableEquiv S
   have hcont : Continuous (conjTransHom j) :=
     Continuous.subtype_mk (Units.continuous_iff.mpr
@@ -546,7 +533,8 @@ theorem lintegral_decay_le (ν : Measure S) [MeasurableMul S] [ν.IsMulRightInva
   calc ∫⁻ s : S, ENNReal.ofReal ((2 / ‖((j s * y : U J) : Matrix n n ℂ)‖) ^ c) ∂ν
       = ENNReal.ofReal ((2 : ℝ) ^ c) *
           ∫⁻ s : Sᵐᵒᵖ, ENNReal.ofReal
-            (‖((conjTransU y * conjTransHom j s : U J) : Matrix n n ℂ)‖ ^ (-(c : ℝ))) ∂(ν.map e) := by
+            (‖((conjTransU y * conjTransHom j s : U J) : Matrix n n ℂ)‖ ^ (-(c : ℝ)))
+              ∂(ν.map e) := by
         simp only [hsplit]
         rw [lintegral_const_mul' _ _ ENNReal.ofReal_ne_top, ← lintegral_map hmeas e.measurable]
     _ ≤ ENNReal.ofReal ((2 : ℝ) ^ c) *
